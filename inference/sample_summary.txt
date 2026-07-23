@@ -1,0 +1,9 @@
+Dataset: Retail store inventory
+Rows: 15000, Columns: 9
+Column names: sku_id, warehouse, category, stock_qty, reorder_level, unit_cost, supplier_name, last_restock_date, expiry_date
+
+Observed data quality issues:
+- 'unit_cost' has 18% missing values
+- 'last_restock_date' contains multiple date formats (e.g. 'DD/MM/YYYY' and 'YYYY-MM-DD' mixed)
+- 'supplier_name' has inconsistent category labels (e.g. 'ABC Traders', 'abc traders', 'ABC TRADERS' all mean the same thing)
+- 4% of rows appear to be exact or near-duplicates (same sku_id)
