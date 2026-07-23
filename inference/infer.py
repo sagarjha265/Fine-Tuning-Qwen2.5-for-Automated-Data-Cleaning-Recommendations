@@ -21,7 +21,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import PeftModel
 
 MODEL_NAME = "Qwen/Qwen2.5-0.5B-Instruct"
-DEFAULT_ADAPTER_DIR = "outputs/final_adapter"
+DEFAULT_ADAPTER_DIR = "outputs/qwen2.5-0.5b-cleaning-lora/final_adapter"  
 
 SYSTEM_PROMPT = (
     "You are a meticulous data-cleaning assistant. Given a dataset summary, "
@@ -34,19 +34,32 @@ def load_model(adapter_dir: str, use_4bit: bool = True):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    kwargs = {"device_map": "auto"}
-    if use_4bit and torch.cuda.is_available():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # NOTE: intentionally NOT using device_map="auto" here. For a model this small
+    # (0.5B params) accelerate's auto-dispatch can decide to offload part of it to
+    # disk/CPU even when unnecessary, and PEFT's adapter loading is incompatible
+    # with disk-offloaded weights (raises a KeyError on embed_tokens). Loading the
+    # whole model onto a single device directly avoids that entirely.
+    kwargs = {}
+    if use_4bit and device == "cuda":
         kwargs["quantization_config"] = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_use_double_quant=True,
             bnb_4bit_quant_type="nf4",
             bnb_4bit_compute_dtype=torch.bfloat16,
         )
+        kwargs["device_map"] = {"": 0}  # pin the whole model to a single GPU, no auto-splitting
     else:
-        kwargs["torch_dtype"] = torch.float32
+        kwargs["dtype"] = torch.float32
 
     base_model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, **kwargs)
+    if "device_map" not in kwargs:
+        base_model = base_model.to(device)
+
     model = PeftModel.from_pretrained(base_model, adapter_dir)
+    if "device_map" not in kwargs:
+        model = model.to(device)
     model.eval()
     return model, tokenizer
 
