@@ -135,7 +135,6 @@ cat my_summary.txt | python inference/infer.py --stdin --adapter_dir outputs/fin
 template used during training, and prints the generated cleaning recommendations. Pass `--no_4bit`
 if running on a CPU-only machine.
 
-### 🎥 Demo
 
 **Input** (`inference/sample_summary.txt`):
 ```
